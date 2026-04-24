@@ -5,5 +5,12 @@
     "deviceId": "e17d30084cda8088",
     "status": "active",
     "createdAt": 1777060346
+  },
+  {
+    "code": "L98FAAH33",
+    "telegramId": 8020675007,
+    "deviceId": "",
+    "status": "active",
+    "createdAt": 1777060603
   }
 ]
