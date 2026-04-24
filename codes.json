@@ -19,5 +19,12 @@
     "deviceId": "",
     "status": "active",
     "createdAt": 1777014278
+  },
+  {
+    "code": "3ACVJAAT5",
+    "telegramId": 6957561800,
+    "deviceId": "",
+    "status": "active",
+    "createdAt": 1777060256
   }
 ]
