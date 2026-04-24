@@ -5,5 +5,12 @@
     "deviceId": "e790f6e240a3b474",
     "status": "active",
     "createdAt": 1777009891
+  },
+  {
+    "code": "8VN8DBJTR",
+    "telegramId": 7958846318,
+    "deviceId": "",
+    "status": "active",
+    "createdAt": 1777012142
   }
 ]
