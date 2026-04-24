@@ -12,5 +12,12 @@
     "deviceId": "",
     "status": "active",
     "createdAt": 1777012142
+  },
+  {
+    "code": "FLQEEBCUG",
+    "telegramId": 6145025412,
+    "deviceId": "",
+    "status": "active",
+    "createdAt": 1777014278
   }
 ]
