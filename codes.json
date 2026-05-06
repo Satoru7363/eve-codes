@@ -34,5 +34,14 @@
     "deviceId": "f737339a247c1ad7",
     "status": "active",
     "createdAt": 1777891132
+  },
+  {
+    "code": "GHMGAAHUW",
+    "telegramId": 8020675007,
+    "username": "im_Satoru",
+    "firstName": "Satoru",
+    "deviceId": "",
+    "status": "active",
+    "createdAt": 1778094131
   }
 ]
