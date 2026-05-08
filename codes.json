@@ -25,5 +25,14 @@
     "deviceId": "331cc044dc349f70",
     "status": "active",
     "createdAt": 1778231988
+  },
+  {
+    "code": "2ZBDBBGTJ",
+    "telegramId": 7695806116,
+    "username": "Z8_MV",
+    "firstName": "Suzuki",
+    "deviceId": "",
+    "status": "active",
+    "createdAt": 1778246835
   }
 ]
