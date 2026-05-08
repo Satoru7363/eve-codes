@@ -16,5 +16,14 @@
     "deviceId": "da0ac23f13b709e2",
     "status": "active",
     "createdAt": 1778197640
+  },
+  {
+    "code": "B29SDBJN5",
+    "telegramId": 7958846318,
+    "username": "uouor",
+    "firstName": "حسن",
+    "deviceId": "",
+    "status": "active",
+    "createdAt": 1778231644
   }
 ]
