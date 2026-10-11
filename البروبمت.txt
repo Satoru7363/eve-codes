@@ -1,0 +1,438 @@
+EVE CINEMA — PHASE 3: TITLE IDENTITY, PROVIDER-OWNED SEASONS & EPISODES
+
+Role
+
+Act as a senior Android engineer specializing in media-provider integration, catalog identity resolution, episodic metadata, API reverse engineering, regression testing, and production-safe refactoring.
+
+You are working on the current Eve Cinema Android project. The subtitle system has recently undergone substantial investigation and repair. Its correct separation between Arabic dubbing, burned-in subtitles, and external subtitle files is now an established working baseline.
+
+Your task is to investigate and repair the next subsystem: title matching, provider-specific catalog identity, and accurate season/episode resolution across MovieBox and CinemaBox.
+
+Do not begin by rewriting the system. First establish the actual architecture, inspect the supplied project and diagnostic sessions, reproduce the failures, identify the root causes, and then make the smallest well-supported changes.
+
+---
+
+1. Non-negotiable architectural rule
+
+TMDB and the streaming providers have different responsibilities.
+
+TMDB: shared work metadata
+
+TMDB remains the shared metadata source for the work displayed in Eve Cinema, including:
+
+- Display title and available localized titles.
+- Poster, backdrop, overview, rating, release date/year, and other existing metadata.
+- The TMDB movie or TV identifier used to identify the intended work.
+- TMDB season and episode information as reference metadata when needed for matching and validation.
+
+TMDB's season and episode numbers must NOT automatically become the playback coordinates for a provider.
+
+MovieBox: its own playable catalog
+
+MovieBox must be the authoritative source for its own:
+
+- Matched provider title and subject ID.
+- Actual available seasons and episodes.
+- Provider-specific season and episode identifiers.
+- Episode numbering, availability, and resource mappings.
+- Playback/resource identifiers and any provider-specific catalog metadata.
+
+Use the real MovieBox API payloads and the actual response semantics established by the code, diagnostics, or verified fixtures. Do not guess what an undocumented field means.
+
+CinemaBox: its own playable catalog
+
+CinemaBox must independently own its corresponding title identity, season list, episode list, episode numbering, and playback/resource mappings.
+
+Do not assume CinemaBox uses MovieBox's identifiers, numbering, response structures, or matching rules. Investigate its actual implementation and payloads independently.
+
+Shared identity, separate catalogs
+
+Both providers may resolve to the same underlying TMDB work, but they are not required to share catalog IDs, season IDs, episode IDs, episode counts, or numbering.
+
+Do not collapse both catalogs into a single TMDB-generated episode list.
+
+The intended architecture is:
+
+TMDB work identity and display metadata → selected provider's catalog identity → selected provider's seasons → selected provider's episodes → selected provider's playback resource.
+
+Keep these identities distinct throughout the flow.
+
+---
+
+2. Phase A — Preserve the working baseline
+
+Before modifying files:
+
+1. Inspect the full current project, not an old snapshot or previously generated patch.
+2. Identify the active source-selection flow, catalog retrieval code, parsers, title-matching implementation, caches, episode models, and playback request builders.
+3. Inspect the supplied diagnostic session and correlate it with the actual code paths.
+4. Create a separate working copy or branch and record the baseline.
+5. Identify the changes from the recently repaired subtitle subsystem. Preserve them.
+6. Record the current build/test status and any existing failures before editing.
+
+Do not modify the user's original project or silently overwrite working files.
+
+Do not assume previously documented function names or line numbers are still accurate. Verify them against the supplied project.
+
+---
+
+3. Phase B — Build an evidence-based failure map
+
+Trace the real execution path from opening a work's details to playing a particular episode.
+
+Inspect the applicable flow, including whichever current implementations perform these operations:
+
+- Searching each provider.
+- Parsing search results.
+- Matching a result to the intended work.
+- Resolving movies versus series.
+- Retrieving provider details and season information.
+- Constructing the season list.
+- Constructing the episode list.
+- Selecting a season and episode.
+- Switching providers.
+- Resolving the selected provider's resource.
+- Building the final playback request.
+- Updating the selected source and relevant caches.
+
+Produce a concise flow diagram or call-chain map based on the actual source code.
+
+For every confirmed bug, document:
+
+- Observable symptom.
+- Diagnostic evidence or reproducible steps.
+- Actual code path and relevant response fields.
+- Root cause.
+- Why existing safeguards failed.
+- Proposed minimal correction.
+- A regression test that would have caught it.
+
+Classify every conclusion as confirmed, strongly supported, or unverified. Do not present an inference as proven merely because it is technically plausible.
+
+If a diagnostic session lacks a response needed to settle a question, state the exact missing evidence and use the safest verifiable approach available.
+
+---
+
+4. Phase C — Repair title identity and matching
+
+Design a general-purpose title matching and identity-resolution flow. Do not solve individual examples with title-specific branches.
+
+Investigate and test the following sources of incorrect matches:
+
+A. Titles and aliases
+
+Handle, when supported by real data:
+
+- Original titles and localized titles.
+- Alternative titles, transliterations, and punctuation differences.
+- Differences involving articles, spacing, hyphens, apostrophes, and diacritics.
+- Japanese, Korean, Chinese, and other non-Latin titles where applicable.
+- Provider titles containing quality labels, release tags, language labels, or other suffixes.
+- Remakes, adaptations, and works sharing identical or nearly identical titles.
+
+Normalize strings for comparison without destroying meaningful identity information. Preserve the original provider title and raw fields for diagnostics.
+
+B. Media identity
+
+Use the most reliable available evidence, such as:
+
+- Media type: movie or TV series.
+- Release year or first-air year, where appropriate.
+- Original title and verified aliases.
+- Provider subject ID and detail payload.
+- External IDs or cross-reference fields only when their meaning is supported by actual data.
+- Other distinguishing metadata actually available from the provider.
+
+A title similarity score alone must not be treated as proof of identity.
+
+Do not select the first result merely because it has the highest string similarity. Do not choose a trailer, unrelated work, remake, episode, or similarly named series when the requested work is a full movie or the intended series.
+
+When evidence is ambiguous, use a conservative selection policy. Do not silently play an unverified work.
+
+C. Candidate ranking and rejection
+
+Audit the existing ranking logic. Establish why each candidate is accepted, rejected, or ranked above another candidate.
+
+Build a generic scoring or decision process using evidence actually available from both providers. Avoid arbitrary string-ID tie breakers that can turn ambiguous results into apparently valid matches.
+
+Apply explicit rejection rules only where the underlying data supports those rules. Record the decision evidence in diagnostic traces.
+
+---
+
+5. Phase D — Provider-owned season and episode catalogs
+
+This is the central requirement of the phase.
+
+A. Retrieving the catalog
+
+When MovieBox is selected, obtain and parse MovieBox's actual available seasons and episodes.
+
+When CinemaBox is selected, obtain and parse CinemaBox's actual available seasons and episodes.
+
+Inspect the responses and model structures before changing the implementation. Determine which provider fields identify:
+
+- A season.
+- An episode.
+- An episode's actual playable resource.
+- The original provider numbering.
+- Any special episodes or alternate episode entries.
+- Any missing or unavailable entries.
+
+Do not create a supposedly complete catalog by generating every number from 1 to a reported maximum unless the provider's verified response semantics explicitly justify that behavior.
+
+Do not infer that a season has every episode from 1 through N solely because N appears in a field such as "maxEp". Examine the actual response structure and how it represents missing episodes, specials, and non-contiguous numbering.
+
+Keep the provider's original fields available when they are important for playback and diagnostics.
+
+B. TMDB-to-provider episode mapping
+
+TMDB's season and episode information may help identify which episode the user intends, but it is not automatically the provider's playback address.
+
+Implement a generic mapping strategy that:
+
+1. Identifies the intended work.
+2. Loads the chosen provider's real catalog.
+3. Determines the best-supported correspondence between the intended TMDB episode and the provider's catalog entry.
+4. Retains the exact provider identifiers and coordinates needed for playback.
+5. Verifies that the selected episode/resource belongs to the matched provider title.
+6. Reports ambiguity or missing evidence instead of inventing a mapping.
+
+Investigate season-number differences, special episodes, anime cour/season differences, split seasons, missing episodes, alternate numbering, and provider-specific episode orderings.
+
+Do not assume all anime use absolute episode numbering. Do not assume all Western series use the same numbering conventions either.
+
+Do not add per-title exceptions for examples such as Jujutsu Kaisen or Re:Zero. If a general rule cannot safely resolve a case, use evidence-based ambiguity handling rather than a title-specific hack.
+
+C. Keep identifiers separate
+
+Use distinct fields/models where appropriate for:
+
+- TMDB work ID.
+- Provider identity.
+- Provider subject/title ID.
+- TMDB season and episode reference.
+- Provider season ID or season coordinate.
+- Provider episode ID or episode coordinate.
+- Final resource ID used for playback.
+
+Use the actual identities established by the code and payloads. Do not rename an existing identifier to imply semantics that have not been verified.
+
+Avoid passing a TMDB episode number directly into a provider playback request unless the mapping has explicitly established that it is correct for that specific provider catalog entry.
+
+D. Catalog state and failure handling
+
+Distinguish between:
+
+- Catalog successfully loaded with episodes.
+- Catalog successfully loaded but genuinely empty.
+- No matching title found.
+- Temporary network/API failure.
+- Malformed or unexpected response.
+- An episode absent from the provider.
+- A season or episode whose identity is ambiguous.
+- A provider that does not expose enough data to map the requested episode confidently.
+
+Do not treat all failures as “no episodes” or “not found.”
+
+Do not permanently cache transient failures as successful empty results. Preserve retry behavior where appropriate.
+
+---
+
+6. Phase E — Source switching
+
+Switching from MovieBox to CinemaBox, or the reverse, must not retain the wrong provider's catalog or episode coordinates.
+
+Verify this complete lifecycle:
+
+1. Open a work.
+2. Select MovieBox.
+3. Load MovieBox's catalog.
+4. Select one of its seasons and episodes.
+5. Switch to CinemaBox.
+6. Load CinemaBox's independent catalog.
+7. Reconcile the user's selection with CinemaBox's actual entries.
+8. Play only a verified CinemaBox resource.
+9. Switch back to MovieBox and ensure its original catalog and valid mapping are recovered or reloaded correctly.
+
+Never reuse a MovieBox subject ID, season coordinate, episode coordinate, resource ID, or cached catalog entry as a CinemaBox identifier unless actual verified API semantics establish that reuse is valid.
+
+Preserve the intended title when switching sources, but do not blindly preserve an episode number if the new provider's numbering differs.
+
+If the previous selection has a verified equivalent, retain it. If no equivalent can be established, show the correct available catalog or a clear unavailable/ambiguous state rather than silently playing the wrong episode.
+
+Guard against stale asynchronous responses. A late response from a previous work, provider, season, or episode must not overwrite the active selection.
+
+---
+
+7. Phase F — Cache audit
+
+Audit every cache involved in title matching, provider resolution, season lists, episode lists, and playback-resource selection.
+
+For each cache, determine:
+
+- Cache key composition.
+- Whether the key includes the provider identity.
+- Whether media type and provider title identity are included where necessary.
+- Whether the key distinguishes the intended work and relevant catalog coordinates.
+- Expiration behavior.
+- Invalidation on provider switching.
+- Invalidation on changing the work, season, or episode.
+- Behavior after transient errors and malformed responses.
+- Whether old matching decisions can override a new user selection.
+
+Fix incorrect key collisions and stale-state behavior without indiscriminately disabling useful caching.
+
+Do not combine catalog data from two providers under one key. Do not cache an unverified match as if it were authoritative.
+
+---
+
+8. Phase G — Diagnostic evidence
+
+Use the project's existing diagnostic infrastructure when available. Extend it minimally if needed.
+
+For each important catalog resolution, capture enough information to reconstruct the decision:
+
+- Provider and operation.
+- Sanitized search query and media type.
+- Candidate titles and relevant non-sensitive matching evidence.
+- Selected or rejected candidate and decision reason.
+- Sanitized provider subject identity.
+- Season/episode catalog retrieval outcome.
+- Relevant original provider numbering.
+- Selected catalog entry and mapping evidence.
+- Source-switch and stale-response events.
+- Playback-resource resolution outcome.
+- Failure category and retryability.
+
+Never log authentication headers, API keys, cookies, tokens, signed URL secrets, or other sensitive data. Sanitize identifiers that could expose private accounts.
+
+Logs must distinguish a successful API response from a correct identity match. Receiving HTTP 200 is not proof the right title or episode was selected.
+
+---
+
+9. Phase H — Regression protection
+
+The recent subtitle behavior is a protected baseline.
+
+Do not refactor or modify subtitle parsing, subtitle timing, "SubtitleTimeline", "SubtitleManager", burned-in subtitle classification, dubbing classification, audio selection, or subtitle overlays unless a proven direct dependency makes a change unavoidable.
+
+If a shared model or API contract must change, explain why, limit the change, and add explicit regression tests for the subtitle system.
+
+Verify that:
+
+- Arabic dubbing continues to resolve and play correctly.
+- Burned-in subtitles remain distinct from external subtitle files.
+- External subtitles remain correctly associated with the selected playback item.
+- Changing providers does not attach a subtitle from a different title or episode.
+- Existing subtitle safety and diagnostic tests still pass.
+
+Do not trade away working subtitle behavior to solve catalog resolution.
+
+---
+
+10. Phase I — Required test program: at least 400 scenarios
+
+Create a deterministic test inventory with at least 400 distinct scenario IDs, each with an independent, meaningful assertion and an expected result.
+
+Run the test command and preserve the per-case results in the project. Reuse existing test infrastructure where appropriate, but verify every result rather than trusting a printed summary.
+
+Cover at least these categories:
+
+A. Title identity and search matching: localized titles, aliases, transliterations, punctuation, ambiguous titles, remakes, year conflicts, movies versus series, trailers versus full works, and misleading candidates.
+
+B. Provider-specific parsing: different response schemas, absent fields, extra fields, malformed data, multiple seasons, missing seasons, non-contiguous episode numbers, missing episodes, specials, duplicates, and conflicting metadata.
+
+C. TMDB-to-provider mapping: matching and non-matching season/episode coordinates, split seasons, anime numbering variations, alternate episode ordering, unavailable entries, and ambiguous correspondences.
+
+D. Source-switch integrity: MovieBox-to-CinemaBox and CinemaBox-to-MovieBox transitions, retained selections, unmappable selections, stale responses, changed work identity, and repeated rapid switching.
+
+E. Playback-resource identity: verify the chosen provider subject, season, episode, and resource all belong to the intended work and episode. Confirm that failure to resolve the correct resource cannot silently fall back to an unrelated episode.
+
+F. Cache and recovery: provider-specific cache keys, invalidation, stale decisions, timeouts, temporary failures, empty catalogs, retries, and malformed payload recovery.
+
+G. Concurrency and state integrity: change title, season, episode, or provider while requests are pending. Ensure only responses belonging to the current active selection can update the UI or playback mapping.
+
+H. Historical regressions: include evidence-based fixtures or test scenarios for the existing project cases involving From, Jujutsu Kaisen, Re:Zero, Game of Thrones, Breaking Bad, FBI, and other affected titles found in the supplied diagnostics. Include Tangled and Spider-Man: Brand New Day only where appropriate for title identity or catalog regressions; do not assume a subtitle issue is automatically a catalog issue.
+
+I. Property-based or deterministic combinatorial coverage: exercise combinations of provider, title identity, media type, season/episode mapping, cache state, and network outcome. Keep generation deterministic and results reproducible.
+
+For every scenario, record:
+
+- Unique scenario ID.
+- Category.
+- Input or fixture reference.
+- Expected identity/catalog/mapping.
+- Actual observed result.
+- Assertion outcome.
+- Evidence or failure reason.
+
+Strict reporting rules
+
+Report the real counts of passed, failed, executed, and skipped scenarios.
+
+A scenario may count as passed only if its relevant code actually executed and its assertion succeeded.
+
+Do not create hundreds of trivial tests that check only non-null values. Do not count generated cases that were never executed. Do not convert unsupported scenarios into passes. Do not weaken assertions to make the suite green.
+
+Separate and report:
+
+- Unit tests.
+- Parser and fixture integration tests.
+- Source-switch and state tests.
+- Playback-resource mapping tests.
+- Live-provider tests, if the environment and credentials permit them.
+- Device/Android tests and build results.
+
+Synthetic fixtures are valuable, but they are not proof of a live API response or end-to-end playback correctness. State the coverage and limitations honestly.
+
+Acceptance target: at least 400 executed scenarios, 0 failures, 0 unsupported cases falsely counted as passing, and 0 unresolved regressions in the protected baseline. A failed or unavailable live test must be reported explicitly rather than concealed by unit-test results.
+
+---
+
+11. Phase J — Implementation rules
+
+- Prefer small, reviewable changes over broad rewrites.
+- Use the existing language, architecture, Android Gradle Plugin, and project conventions.
+- Do not migrate Java code to Kotlin or change UI architecture without a separate, demonstrated requirement.
+- Do not introduce new libraries unless necessary and justified.
+- Do not hardcode special behavior for individual titles.
+- Do not fabricate provider API fields or undocumented enum meanings.
+- Do not silently choose an unverified candidate when evidence conflicts.
+- Do not remove diagnostics merely to simplify the code.
+- Do not call the implementation complete just because the project compiles.
+- Preserve working application behavior and report any unavoidable UI changes.
+
+Before finalizing, inspect the diff for unrelated edits, duplicated logic, swallowed exceptions, incorrect cache keys, stale callbacks, and places where a TMDB coordinate is still incorrectly passed directly as a provider coordinate.
+
+---
+
+12. Final deliverables
+
+Provide all of the following:
+
+1. Root-cause report: confirmed problems, evidence, and affected code paths.
+2. Architecture summary: how title identity, TMDB metadata, provider catalogs, and playback IDs are now separated.
+3. File-by-file change list: what changed and why.
+4. Before/after behavior: concrete examples grounded in supplied payloads or reproducible tests.
+5. 400+ scenario inventory: stored in the project.
+6. Per-scenario results: stored in the project and reproducible.
+7. Test command: one command that runs the available offline suite and regenerates the results reproducibly.
+8. Build report: actual commands executed and their real outcomes.
+9. Regression report: subtitle baseline and other existing functionality.
+10. Known limitations: every live-provider or device validation that could not be performed.
+11. Patch/diff or updated project archive: suitable for review and integration without replacing the original project silently.
+
+Definition of done
+
+The phase is complete only when:
+
+- TMDB remains responsible for shared work metadata.
+- MovieBox and CinemaBox independently own their season and episode catalogs.
+- Provider IDs and episode coordinates are never blindly interchanged.
+- Title matches and episode mappings are based on evidence, not title-specific hacks.
+- Switching sources reloads and respects the selected provider's catalog.
+- Missing, ambiguous, and temporary-failure states are handled honestly.
+- The existing subtitle behavior remains intact.
+- The test report reflects actual executions and limitations.
+
+Start with the audit and diagnostic evidence. Present the confirmed root causes and a minimal repair plan before making changes. Then implement, test, inspect the diff, and deliver the complete report.
